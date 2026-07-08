@@ -1,30 +1,39 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:simats_campusnav/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App Initial Load and Splash Screen Test', (WidgetTester tester) async {
+    // 1. Build our app and trigger a frame.
+    await tester.pumpWidget(const CampusNavApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // 2. Verify that Splash Screen shows the App Name
+    expect(find.text('SIMATS'), findsOneWidget);
+    expect(find.text('Campus Nav'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // 3. Verify that the "Get Started" button is present
+    expect(find.text('Get Started'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // 4. Tap the "Get Started" button and trigger transition
+    await tester.tap(find.text('Get Started'));
+    await tester.pumpAndSettle(); // Wait for navigation animation to finish
+
+    // 5. Verify that we are now on the Login Screen
+    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text('Login to continue'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2)); // Email and Password fields
+  });
+
+  testWidgets('Login Screen UI Elements Test', (WidgetTester tester) async {
+    await tester.pumpWidget(const CampusNavApp());
+    await tester.tap(find.text('Get Started'));
+    await tester.pumpAndSettle();
+
+    // Check for essential UI elements
+    expect(find.byIcon(Icons.email), findsOneWidget);
+    expect(find.byIcon(Icons.lock), findsOneWidget);
+    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Sign Up'), findsOneWidget);
+    expect(find.text('Forgot Password?'), findsOneWidget);
   });
 }
