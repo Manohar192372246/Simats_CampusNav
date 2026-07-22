@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "766182101171",
+    "project_id": "simats-campusnav",
+    "storage_bucket": "simats-campusnav.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:766182101171:android:e34e3571cd78aae72ee0c6",
+        "android_client_info": {
+          "package_name": "com.simats.campusnav.simats_campusnav"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAepD9q1DDBSW2kCGQeS5yCJKK9xdxvVHE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

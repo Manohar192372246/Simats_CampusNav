@@ -53,6 +53,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // Navigation steps
   List<String> _navigationSteps = [];
   int _currentStepIndex = 0;
+  bool _isFirstLocationReceived = false;
+  bool _isNavigatingRealTime = false;
   
   // Replace with your API Key
   final String googleApiKey = "AIzaSyDvnJx-QAjsjamV-s0hKdskaGWvEfZdtB4";
@@ -262,32 +264,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (_permissionGranted != PermissionStatus.granted) return;
     }
 
+    await _location.changeSettings(
+      accuracy: LocationAccuracy.navigation,
+      interval: 1000, 
+      distanceFilter: 2
+    );
+
     _location.onLocationChanged.listen((LocationData currentLocation) {
       if (currentLocation.latitude != null && currentLocation.longitude != null) {
+        LatLng newPos = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+        
         setState(() {
-          _currentLocation = LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          
+          _currentLocation = newPos;
           _circles = {
             Circle(
               circleId: const CircleId("current_loc"),
               center: _currentLocation!,
-              radius: 12,
-              fillColor: const Color(0xFF4285F4).withOpacity(0.2),
-              strokeColor: const Color(0xFF4285F4),
+              radius: 8,
+              fillColor: const Color(0xFF4285F4).withOpacity(0.3),
+              strokeColor: Colors.white,
               strokeWidth: 2,
             )
           };
 
-          if (_isNavigating && _currentLocation != null) {
-             mapController.animateCamera(CameraUpdate.newCameraPosition(
-              CameraPosition(target: _currentLocation!, zoom: 19, tilt: 60, bearing: currentLocation.heading ?? 0)
+          if (!_isFirstLocationReceived) {
+            _isFirstLocationReceived = true;
+            mapController.animateCamera(CameraUpdate.newLatLngZoom(_currentLocation!, 17));
+          }
+
+          if (_isNavigating) {
+            mapController.animateCamera(CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: _currentLocation!,
+                zoom: 19,
+                tilt: 60,
+                bearing: currentLocation.heading ?? 0,
+              )
             ));
-          } else if (_isTracking) {
-            mapController.animateCamera(CameraUpdate.newLatLng(_currentLocation!));
           }
         });
       }
     });
+  }
+
+  void _checkNavigationProgress(LatLng currentPos) {
+    // Basic logic to move to next instruction if we are within 10 meters of current step 
+    // This can be enhanced further with polyline point checking
+    if (_navigationSteps.length > _currentStepIndex + 1) {
+       // Just a simple simulated step forward for demo, 
+       // in real world we compare distance to next polyline coordinate
+    }
   }
 
   void _saveSearchHistory(String text) async {
@@ -304,91 +330,104 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _navigateToBuilding(Map<String, dynamic> building, {String mode = "walk"}) async {
     _saveSearchHistory(building['name']);
+    
+    LatLng destination = LatLng(building['lat'], building['lng']);
+    
     setState(() {
       _selectedIndex = 1;
       _selectedBuilding = building;
       _navMode = mode;
+      _polylines.clear(); // Clear previous route
+      _markers.clear();
+      _markers.add(Marker(
+        markerId: MarkerId(building['name']),
+        position: destination,
+        infoWindow: InfoWindow(title: building['name']),
+      ));
     });
 
-    LatLng destination = LatLng(building['lat'], building['lng']);
-    
-    _markers.clear();
-    _markers.add(Marker(
-      markerId: MarkerId(building['name']),
-      position: destination,
-      infoWindow: InfoWindow(title: building['name']),
-    ));
+    // Try to get the latest position immediately
+    try {
+      var locData = await _location.getLocation();
+      if (locData.latitude != null && locData.longitude != null) {
+        _currentLocation = LatLng(locData.latitude!, locData.longitude!);
+      }
+    } catch (e) {
+      debugPrint("Error getting initial location: $e");
+    }
 
     if (_currentLocation != null) {
-      // Switching to Google Directions API for much better road-snapping and accuracy
-      String googleMode = mode == "walk" ? "walking" : (mode == "bike" ? "bicycling" : "driving");
-      final url = 'https://maps.googleapis.com/maps/api/directions/json?origin=${_currentLocation!.latitude},${_currentLocation!.longitude}&destination=${destination.latitude},${destination.longitude}&mode=$googleMode&key=$googleApiKey';
+      _fetchRoute(_currentLocation!, destination, mode);
       
-      try {
-        final response = await http.get(Uri.parse(url));
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          if (data['status'] == 'OK') {
-            final String encodedPolyline = data['routes'][0]['overview_polyline']['points'];
-            PolylinePoints polylinePoints = PolylinePoints();
-            List<PointLatLng> result = polylinePoints.decodePolyline(encodedPolyline);
-            
-            List<LatLng> coords = result.map((p) => LatLng(p.latitude, p.longitude)).toList();
-
-            // Extracting navigation instructions
-            List<String> steps = [];
-            final legs = data['routes'][0]['legs'];
-            if (legs != null && legs.isNotEmpty) {
-              for (var step in legs[0]['steps']) {
-                String instruction = step['html_instructions'] ?? "";
-                // Remove HTML tags using Regex
-                instruction = instruction.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), ' ');
-                steps.add(instruction.trim());
-              }
-            }
-
-            setState(() {
-              _navigationSteps = steps;
-              _currentStepIndex = 0;
-              _polylines.clear();
-              // Outer Border (Casing) - Makes it look thick and professional
-              _polylines.add(Polyline(
-                polylineId: const PolylineId("route_border"),
-                points: coords,
-                color: const Color(0xFF1565C0),
-                width: mode == "walk" ? 12 : (mode == "bike" ? 22 : 25),
-                jointType: JointType.round,
-                startCap: Cap.roundCap,
-                endCap: Cap.roundCap,
-                zIndex: 1,
-              ));
-              // Inner Line - Uses dots for walking to match Google Maps style
-              _polylines.add(Polyline(
-                polylineId: const PolylineId("route_main"),
-                points: coords,
-                color: const Color(0xFF1A73E8),
-                width: mode == "walk" ? 8 : (mode == "bike" ? 14 : 16),
-                patterns: mode == "walk" ? [PatternItem.dot, PatternItem.gap(15)] : [],
-                jointType: JointType.round,
-                startCap: Cap.roundCap,
-                endCap: Cap.roundCap,
-                zIndex: 2,
-              ));
-            });
-          } else {
-            // If Google API fails (e.g., key/billing), fallback to OSRM logic
-            _fetchOSRMRoute(destination, mode);
-          }
-        }
-      } catch (e) {
-        debugPrint("Route Error: $e");
-      }
+      // Zoom map to show both user and destination
+      LatLngBounds bounds = LatLngBounds(
+        southwest: LatLng(
+          _currentLocation!.latitude < destination.latitude ? _currentLocation!.latitude : destination.latitude,
+          _currentLocation!.longitude < destination.longitude ? _currentLocation!.longitude : destination.longitude,
+        ),
+        northeast: LatLng(
+          _currentLocation!.latitude > destination.latitude ? _currentLocation!.latitude : destination.latitude,
+          _currentLocation!.longitude > destination.longitude ? _currentLocation!.longitude : destination.longitude,
+        ),
+      );
+      mapController.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+    } else {
       mapController.animateCamera(CameraUpdate.newLatLngZoom(destination, 16));
     }
   }
 
-  // Fallback method using OSRM if Google API is unavailable
+  void _fetchRoute(LatLng origin, LatLng destination, String mode) async {
+    String googleMode = mode == "walk" ? "walking" : (mode == "bike" ? "bicycling" : "driving");
+    final url = 'https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=$googleMode&key=$googleApiKey';
+    
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK') {
+          final String encodedPolyline = data['routes'][0]['overview_polyline']['points'];
+          PolylinePoints polylinePoints = PolylinePoints();
+          List<PointLatLng> result = polylinePoints.decodePolyline(encodedPolyline);
+          List<LatLng> coords = result.map((p) => LatLng(p.latitude, p.longitude)).toList();
+
+          List<String> steps = [];
+          final legs = data['routes'][0]['legs'];
+          if (legs != null && legs.isNotEmpty) {
+            for (var step in legs[0]['steps']) {
+              String instruction = step['html_instructions'] ?? "";
+              instruction = instruction.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), ' ');
+              steps.add(instruction.trim());
+            }
+          }
+
+          setState(() {
+            _navigationSteps = steps;
+            _currentStepIndex = 0;
+            _polylines.clear();
+            _polylines.add(Polyline(
+              polylineId: const PolylineId("route_main"),
+              points: coords,
+              color: const Color(0xFF1A73E8),
+              width: 6,
+              jointType: JointType.round,
+              startCap: Cap.roundCap,
+              endCap: Cap.roundCap,
+            ));
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint("Google Route Error: $e");
+    }
+    
+    // Fallback to OSRM if Google Fails
+    _fetchOSRMRoute(destination, mode);
+  }
+
   void _fetchOSRMRoute(LatLng destination, String mode) async {
+    if (_currentLocation == null) return;
+    
     String osrmMode = mode == "walk" ? "foot" : (mode == "bike" ? "bicycle" : "car");
     final url = 'https://router.project-osrm.org/route/v1/$osrmMode/${_currentLocation!.longitude},${_currentLocation!.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=polyline';
     
@@ -396,24 +435,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final String encodedPolyline = data['routes'][0]['geometry'];
-        PolylinePoints polylinePoints = PolylinePoints();
-        List<PointLatLng> result = polylinePoints.decodePolyline(encodedPolyline);
-        List<LatLng> coords = result.map((p) => LatLng(p.latitude, p.longitude)).toList();
+        if (data['routes'] != null && data['routes'].isNotEmpty) {
+          final String encodedPolyline = data['routes'][0]['geometry'];
+          PolylinePoints polylinePoints = PolylinePoints();
+          List<PointLatLng> result = polylinePoints.decodePolyline(encodedPolyline);
+          List<LatLng> coords = result.map((p) => LatLng(p.latitude, p.longitude)).toList();
 
-        setState(() {
-          _polylines.clear();
-          _polylines.add(Polyline(
-            polylineId: const PolylineId("route_main"),
-            points: coords,
-            color: const Color(0xFF1A73E8),
-            width: mode == "walk" ? 10 : 18,
-            patterns: mode == "walk" ? [PatternItem.dot, PatternItem.gap(12)] : [],
-            jointType: JointType.round,
-            startCap: Cap.roundCap,
-            endCap: Cap.roundCap,
-          ));
-        });
+          setState(() {
+            _polylines.clear();
+            _polylines.add(Polyline(
+              polylineId: const PolylineId("route_main"),
+              points: coords,
+              color: const Color(0xFF1A73E8),
+              width: 6,
+              jointType: JointType.round,
+              startCap: Cap.roundCap,
+              endCap: Cap.roundCap,
+            ));
+          });
+        }
       }
     } catch (e) {
       debugPrint("OSRM Fallback Error: $e");
@@ -555,6 +595,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildMapBody() {
+    final filteredSuggestions = searchQuery.isEmpty ? [] : buildings.where((b) {
+      return b['name'].toLowerCase().contains(searchQuery.toLowerCase());
+    }).toList();
+
     return Stack(
       children: [
         GoogleMap(
@@ -563,14 +607,81 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           myLocationEnabled: true,
           myLocationButtonEnabled: false,
           zoomControlsEnabled: false,
+          trafficEnabled: _showTraffic,
           markers: _markers,
           polylines: _polylines,
           circles: _circles,
           mapType: _currentMapType,
         ),
 
-        // TOP NAVIGATION BAR (Simulated Google Maps)
-        if (_isNavigating)
+        // TOP SEARCH BAR & SUGGESTIONS
+        if (!_isNavigating)
+          Positioned(
+            top: 50, left: 15, right: 15,
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  height: 55,
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+                  child: Row(children: [
+                    Stack(alignment: Alignment.center, children: [
+                      ShaderMask(shaderCallback: (b) => const SweepGradient(colors: [Color(0xFF4285F4), Color(0xFFEA4335), Color(0xFFFBBC05), Color(0xFF34A853), Color(0xFF4285F4)]).createShader(b), child: const Icon(Icons.location_on, color: Colors.white, size: 32)),
+                      Positioned(top: 6, child: Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))),
+                    ]),
+                    const SizedBox(width: 10),
+                    Expanded(child: TextField(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() => searchQuery = value),
+                      decoration: const InputDecoration(hintText: "Search here", border: InputBorder.none)
+                    )),
+                    if (searchQuery.isNotEmpty)
+                      IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() { searchQuery = ""; _searchController.clear(); })),
+                    GestureDetector(
+                      onTapDown: (_) => _startListening(),
+                      onTapCancel: () => _stopListening(),
+                      onTapUp: (_) => _stopListening(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Icon(
+                          _speechToText.isListening ? Icons.mic : Icons.mic_none_rounded, 
+                          color: _speechToText.isListening ? Colors.red : const Color(0xFF0A4DDE)
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+                if (filteredSuggestions.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+                    constraints: BoxConstraints(maxHeight: 250),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      itemCount: filteredSuggestions.length,
+                      itemBuilder: (context, index) {
+                        final b = filteredSuggestions[index];
+                        return ListTile(
+                          leading: Icon(b['icon'], color: Color(0xFF1A73E8)),
+                          title: Text(b['name']),
+                          onTap: () {
+                            setState(() {
+                              searchQuery = "";
+                              _searchController.clear();
+                            });
+                            _navigateToBuilding(b);
+                          },
+                        );
+                      },
+                    ),
+                  )
+              ],
+            ),
+          )
+        else
+          // TOP NAVIGATION BAR (Existing)
           Positioned(
             top: 50, left: 15, right: 15,
             child: Container(
@@ -613,39 +724,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => setState(() { _isNavigating = false; _navigationSteps = []; }))
                 ],
               ),
-            ),
-          )
-        else
-          Positioned(
-            top: 50, left: 15, right: 15,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              height: 55,
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
-              child: Row(children: [
-                Stack(alignment: Alignment.center, children: [
-                  ShaderMask(shaderCallback: (b) => const SweepGradient(colors: [Color(0xFF4285F4), Color(0xFFEA4335), Color(0xFFFBBC05), Color(0xFF34A853), Color(0xFF4285F4)]).createShader(b), child: const Icon(Icons.location_on, color: Colors.white, size: 32)),
-                  Positioned(top: 6, child: Container(width: 10, height: 10, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))),
-                ]),
-                const SizedBox(width: 10),
-                Expanded(child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => searchQuery = value),
-                  decoration: const InputDecoration(hintText: "Search here", border: InputBorder.none)
-                )),
-                GestureDetector(
-                  onTapDown: (_) => _startListening(),
-                  onTapCancel: () => _stopListening(),
-                  onTapUp: (_) => _stopListening(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Icon(
-                      _speechToText.isListening ? Icons.mic : Icons.mic_none_rounded, 
-                      color: _speechToText.isListening ? Colors.red : const Color(0xFF0A4DDE)
-                    ),
-                  ),
-                ),
-              ]),
             ),
           ),
 
@@ -718,25 +796,142 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showMapTypeSelector() {
-    showModalBottomSheet(context: context, backgroundColor: Colors.transparent, builder: (context) => Container(padding: const EdgeInsets.all(20), decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.only(topLeft: Radius.circular(25), topRight: Radius.circular(25))), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text("Map Type", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 20),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-        _mapTypeOption("Default", MapType.normal, Icons.map_outlined),
-        _mapTypeOption("Satellite", MapType.satellite, Icons.satellite_alt_outlined),
-        _mapTypeOption("Terrain", MapType.terrain, Icons.terrain_outlined),
-      ]),
-      const SizedBox(height: 20),
-    ])));
+    showModalBottomSheet(
+      context: context, 
+      backgroundColor: Colors.transparent, 
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25), 
+        decoration: const BoxDecoration(
+          color: Colors.white, 
+          borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30))
+        ), 
+        child: Column(
+          mainAxisSize: MainAxisSize.min, 
+          crossAxisAlignment: CrossAxisAlignment.start, 
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Map type", style: TextStyle(fontSize: 18, color: Colors.black87)),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start, 
+              children: [
+                _mapTypeOption("Default", MapType.normal, "assets/images/map_default.png"),
+                const SizedBox(width: 20),
+                _mapTypeOption("Satellite", MapType.satellite, "assets/images/map_satellite.png"),
+                const SizedBox(width: 20),
+                _mapTypeOption("Terrain", MapType.terrain, "assets/images/map_terrain.png"),
+              ],
+            ),
+            const SizedBox(height: 25),
+            const Text("Map details", style: TextStyle(fontSize: 18, color: Colors.black87)),
+            const SizedBox(height: 15),
+            Row(
+              children: [
+                _mapDetailOption("Traffic", Icons.traffic_outlined),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ]
+        )
+      )
+    );
   }
 
-  Widget _mapTypeOption(String label, MapType type, IconData icon) {
+  Widget _mapTypeOption(String label, MapType type, String assetPath) {
     bool isSelected = _currentMapType == type;
-    return GestureDetector(onTap: () { setState(() => _currentMapType = type); Navigator.pop(context); }, child: Column(children: [
-      Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isSelected ? const Color(0xFF0A4DDE).withOpacity(0.1) : Colors.grey.shade100, borderRadius: BorderRadius.circular(15), border: Border.all(color: isSelected ? const Color(0xFF0A4DDE) : Colors.transparent, width: 2)), child: Icon(icon, color: isSelected ? const Color(0xFF0A4DDE) : Colors.grey, size: 30)),
-      const SizedBox(height: 8),
-      Text(label, style: TextStyle(color: isSelected ? const Color(0xFF0A4DDE) : Colors.black, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-    ]));
+    IconData fallbackIcon = type == MapType.satellite ? Icons.satellite_alt : (type == MapType.terrain ? Icons.terrain : Icons.map);
+    
+    return GestureDetector(
+      onTap: () { 
+        setState(() => _currentMapType = type); 
+      }, 
+      child: Column(
+        children: [
+          Container(
+            width: 65,
+            height: 65,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? const Color(0xFF1A73E8) : Colors.grey.shade300, 
+                width: isSelected ? 3 : 1
+              ),
+              image: DecorationImage(
+                image: AssetImage(assetPath),
+                fit: BoxFit.cover,
+                onError: (e, s) => {}, 
+              ),
+              color: Colors.grey.shade100,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Show icon if image fails or just as part of design
+                if (isSelected) Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFF1A73E8).withOpacity(0.1),
+                  ),
+                ),
+                Icon(fallbackIcon, color: isSelected ? const Color(0xFF1A73E8) : Colors.black26, size: 24),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label, 
+            style: TextStyle(
+              fontSize: 12,
+              color: isSelected ? const Color(0xFF1A73E8) : Colors.black54, 
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal
+            )
+          ),
+        ],
+      )
+    );
+  }
+
+  bool _showTraffic = false;
+  Widget _mapDetailOption(String label, IconData icon) {
+    return GestureDetector(
+      onTap: () {
+        setState(() => _showTraffic = !_showTraffic);
+      },
+      child: Column(
+        children: [
+          Container(
+            width: 65,
+            height: 65,
+            decoration: BoxDecoration(
+              color: _showTraffic ? const Color(0xFF1A73E8).withOpacity(0.1) : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _showTraffic ? const Color(0xFF1A73E8) : Colors.transparent,
+                width: 3
+              ),
+            ),
+            child: Icon(icon, color: _showTraffic ? const Color(0xFF1A73E8) : Colors.black54, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label, 
+            style: TextStyle(
+              fontSize: 12,
+              color: _showTraffic ? const Color(0xFF1A73E8) : Colors.black54,
+              fontWeight: _showTraffic ? FontWeight.bold : FontWeight.normal
+            )
+          ),
+        ],
+      ),
+    );
   }
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();

@@ -1,6 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
@@ -26,8 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      emailController.text = prefs.getString('user_email') ?? "";
-      passwordController.text = prefs.getString('user_password') ?? "";
+      emailController.text = prefs.getString('remember_email') ?? "";
+      // Password is no longer auto-filled for better security
     });
   }
 
@@ -42,35 +43,61 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    List<String> usersList = prefs.getStringList('all_users') ?? [];
-    
-    bool userFound = false;
-    String? userName;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
-    for (String userStr in usersList) {
-      Map<String, dynamic> user = jsonDecode(userStr);
-      if (user['email'] == email && user['password'] == password) {
-        userFound = true;
-        userName = user['name'];
-        break;
+    try {
+      // 1. Sign in with Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user != null) {
+        // 2. Fetch User Data from Firestore
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).get();
+        
+        String userName = "Student";
+        String userDept = "CSE Dept";
+        
+        if (userDoc.exists) {
+          Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
+          userName = data['name'] ?? "Student";
+          userDept = data['dept'] ?? "CSE Dept";
+        }
+
+        // 3. Save to SharedPreferences for Session Management (No sensitive data)
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_logged_in', true);
+        await prefs.setString('user_name', userName);
+        await prefs.setString('user_email', email);
+        await prefs.setString('user_dept', userDept);
+        
+        // Remember email only for convenience
+        await prefs.setString('remember_email', email);
+
+        Navigator.pop(context); // Close loading dialog
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
       }
-    }
-
-    if (userFound) {
-      await prefs.setBool('is_logged_in', true);
-      await prefs.setString('current_user_name', userName ?? "Student");
-      await prefs.setString('user_email', email);
-      await prefs.setString('user_password', password);
-      
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Invalid email or password")),
-      );
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      String message = "Invalid email or password";
+      if (e.code == 'user-not-found') {
+        message = 'No user found for that email.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Wrong password provided.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
