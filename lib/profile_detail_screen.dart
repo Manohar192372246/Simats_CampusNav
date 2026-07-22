@@ -85,8 +85,6 @@ class _ProfileDetailScreenState extends State<ProfileDetailScreen> {
         return _notificationsView();
       case "Security & Privacy":
         return _securityView();
-      case "My Favorites":
-        return _favoritesView();
       case "Help & Support":
         return _helpView();
       case "About CampusNav":
@@ -191,44 +189,6 @@ class _ProfileDetailScreenState extends State<ProfileDetailScreen> {
         trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 14),
         onTap: onTap,
       ),
-    );
-  }
-
-  Widget _favoritesView() {
-    final List<Map<String, dynamic>> favorites = [
-      {"name": "Saveetha Hospital", "type": "Medical Center", "icon": Icons.local_hospital, "color": Colors.red},
-      {"name": "Bala Murugan Temple", "type": "Religious Site", "icon": Icons.temple_hindu, "color": Colors.orange},
-      {"name": "Canteens", "type": "Food Court", "icon": Icons.restaurant, "color": Colors.green},
-      {"name": "CSE BLOCK", "type": "Academic Block", "icon": Icons.computer, "color": Colors.blue},
-    ];
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(15),
-      itemCount: favorites.length,
-      itemBuilder: (context, index) {
-        final fav = favorites[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          child: ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: fav['color'].withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(fav['icon'], color: fav['color']),
-            ),
-            title: Text(fav['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(fav['type']),
-            trailing: const Icon(Icons.favorite, color: Colors.red, size: 20),
-            onTap: () {
-              // Navigation logic could be added here
-              Navigator.pop(context);
-            },
-          ),
-        );
-      },
     );
   }
 

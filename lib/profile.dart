@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
@@ -55,10 +56,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Image.file(
-                  widget.profileImage!,
-                  fit: BoxFit.contain,
-                ),
+                child: kIsWeb 
+                  ? Image.network(widget.profileImage!.path, fit: BoxFit.contain)
+                  : Image.file(widget.profileImage!, fit: BoxFit.contain),
               ),
             ),
             Positioned(
@@ -89,7 +89,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: CircleAvatar(
                     radius: 60,
                     backgroundColor: const Color(0xFF0A4DDE),
-                    backgroundImage: widget.profileImage != null ? FileImage(widget.profileImage!) : null,
+                    backgroundImage: widget.profileImage != null 
+                      ? (kIsWeb ? NetworkImage(widget.profileImage!.path) : FileImage(widget.profileImage!) as ImageProvider)
+                      : null,
                     child: widget.profileImage == null ? const Icon(Icons.person, size: 70, color: Colors.white) : null),
               ),
             ),
@@ -123,7 +125,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             children: [
               _profileItem(context, Icons.person_outline, "Edit Profile", isEdit: true),
-              _profileItem(context, Icons.favorite_outline, "My Favorites"),
               _profileItem(context, Icons.history, "Recent History"),
               _profileItem(context, Icons.notifications_none_rounded, "Push Notifications"),
               _profileItem(context, Icons.security, "Security & Privacy"),
