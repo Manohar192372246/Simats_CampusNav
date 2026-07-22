@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Welcome to My Website</title>
+
+    <style>
+        body {
+            background-color: lightblue;
+            font-family: Cambria;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        h1 {
+            color: blue;
+        }
+
+        button {
+            background-color: blue;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        marquee {
+            color: blue;
+            font-weight: bold;
+            margin: 20px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: auto auto auto;
+            gap: 10px;
+            width: 60%;
+            margin: auto;
+        }
+
+        .grid-item {
+            background-color: white;
+            border: 2px solid blue;
+            padding: 20px;
+            color: blue;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Welcome to My Website</h1>
+
+    <marquee behavior="scroll" direction="left">
+        Welcome to My Website - Learn HTML and CSS
+    </marquee>
+
+    <button>Click Here</button>
+
+    <br><br>
+
+    <div class="grid-container">
+        <div class="grid-item">Box 1</div>
+        <div class="grid-item">Box 2</div>
+        <div class="grid-item">Box 3</div>
+        <div class="grid-item">Box 4</div>
+        <div class="grid-item">Box 5</div>
+        <div class="grid-item">Box 6</div>
+    </div>
+
+</body>
+</html>
