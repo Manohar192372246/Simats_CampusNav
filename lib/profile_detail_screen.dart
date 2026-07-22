@@ -43,14 +43,18 @@ class _ProfileDetailScreenState extends State<ProfileDetailScreen> {
 
   void _loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
+    String uid = prefs.getString('user_uid') ?? "";
+    String historyKey = uid.isEmpty ? 'search_history' : 'search_history_$uid';
     setState(() {
-      _history = prefs.getStringList('search_history') ?? [];
+      _history = prefs.getStringList(historyKey) ?? [];
     });
   }
 
   void _clearHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('search_history');
+    String uid = prefs.getString('user_uid') ?? "";
+    String historyKey = uid.isEmpty ? 'search_history' : 'search_history_$uid';
+    await prefs.remove(historyKey);
     setState(() {
       _history = [];
     });

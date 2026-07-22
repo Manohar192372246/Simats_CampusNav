@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use, use_build_context_synchronously, prefer_final_fields, unused_field, no_leading_underscores_for_local_identifiers, prefer_const_constructors, prefer_const_literals_to_create_immutables
 
-import 'dart:io';
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
@@ -29,8 +30,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   String searchQuery = "";
-  String _userName = "Manohar";
-  String _userEmail = "manohar@simats.edu";
+  String _userName = "";
+  String _userEmail = "";
+  String _userUid = "";
   final TextEditingController _searchController = TextEditingController();
   late GoogleMapController mapController;
   Location _location = Location();
@@ -95,8 +97,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (imagePath != null) {
         _profileImage = File(imagePath);
       }
-      _userName = prefs.getString('user_name') ?? "Manohar";
-      _userEmail = prefs.getString('user_email') ?? "manohar@simats.edu";
+      _userName = prefs.getString('user_name') ?? "User";
+      _userEmail = prefs.getString('user_email') ?? "";
+      _userUid = prefs.getString('user_uid') ?? "";
     });
   }
 
@@ -317,15 +320,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _saveSearchHistory(String text) async {
-    if (text.isEmpty) return;
+    if (text.isEmpty || _userUid.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
-    List<String> history = prefs.getStringList('search_history') ?? [];
+    String historyKey = 'search_history_$_userUid';
+    List<String> history = prefs.getStringList(historyKey) ?? [];
     // Remove if already exists to move to top
     history.remove(text);
     history.insert(0, text);
     // Keep only last 20
     if (history.length > 20) history = history.sublist(0, 20);
-    await prefs.setStringList('search_history', history);
+    await prefs.setStringList(historyKey, history);
   }
 
   void _navigateToBuilding(Map<String, dynamic> building, {String mode = "walk"}) async {
@@ -962,10 +966,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             InteractiveViewer(
               minScale: 0.5,
               maxScale: 4.0,
-              child: Image.file(
-                _profileImage!,
-                fit: BoxFit.contain,
-              ),
+              child: kIsWeb 
+                ? Image.network(_profileImage!.path, fit: BoxFit.contain)
+                : Image.file(_profileImage!, fit: BoxFit.contain),
             ),
             Positioned(
               top: 40,

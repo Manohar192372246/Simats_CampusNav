@@ -16,9 +16,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _name = "Manohar";
-  String _dept = "CSE Dept";
-  String _id = "SIM2024001";
+  String _name = "Loading...";
 
   @override
   void initState() {
@@ -29,8 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _name = prefs.getString('user_name') ?? "Manohar";
-      _dept = prefs.getString('user_dept') ?? "CSE Dept";
+      _name = prefs.getString('user_name') ?? "Student";
     });
   }
 
@@ -120,8 +117,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1E293B))),
-        Text("ID: $_id | $_dept",
-            style: const TextStyle(color: Colors.grey, fontSize: 16)),
         const SizedBox(height: 40),
         Expanded(
           child: ListView(

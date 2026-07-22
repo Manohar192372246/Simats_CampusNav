@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_screen.dart';
-import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -71,14 +70,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // 3. Save to SharedPreferences for Session Management (No sensitive data)
         final prefs = await SharedPreferences.getInstance();
+        // Clear old user data before saving new session
+        String rememberEmail = prefs.getString('remember_email') ?? "";
+        await prefs.clear(); 
+        await prefs.setString('remember_email', rememberEmail);
+        
         await prefs.setBool('is_logged_in', true);
+        await prefs.setString('user_uid', userCredential.user!.uid);
         await prefs.setString('user_name', userName);
         await prefs.setString('user_email', email);
         await prefs.setString('user_dept', userDept);
         
-        // Remember email only for convenience
-        await prefs.setString('remember_email', email);
-
         Navigator.pop(context); // Close loading dialog
         
         Navigator.pushReplacement(
@@ -179,22 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ForgotPasswordScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text("Forgot Password?"),
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 55,

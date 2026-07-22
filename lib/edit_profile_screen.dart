@@ -16,7 +16,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _deptController = TextEditingController();
 
   @override
   void initState() {
@@ -30,7 +29,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameController.text = prefs.getString('user_name') ?? "Manohar";
       _emailController.text = prefs.getString('user_email') ?? "manohar@simats.edu";
       _phoneController.text = prefs.getString('user_phone') ?? "+91 9876543210";
-      _deptController.text = prefs.getString('user_dept') ?? "CSE Dept";
     });
   }
 
@@ -39,7 +37,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     await prefs.setString('user_name', _nameController.text);
     await prefs.setString('user_email', _emailController.text);
     await prefs.setString('user_phone', _phoneController.text);
-    await prefs.setString('user_dept', _deptController.text);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,7 +86,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _inputField("Full Name", _nameController, Icons.person_outline),
             _inputField("Email Address", _emailController, Icons.email_outlined),
             _inputField("Phone Number", _phoneController, Icons.phone_outlined),
-            _inputField("Department", _deptController, Icons.business_outlined),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
