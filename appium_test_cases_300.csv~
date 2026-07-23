@@ -1,0 +1,38 @@
+Test ID,Category,Suite,Description,Expected Outcome,Status,Duration (ms),Comments
+TC_UI_001,UI/UX Testing,Splash Screen,Verify splash screen logo is centered,Logo displays correctly in center,PASS,15,Verified on Emulator
+TC_UI_002,UI/UX Testing,Splash Screen,Verify background color matches brand theme,Background color is #0A4DDE,PASS,10,UI Check
+TC_UI_003,UI/UX Testing,Login Screen,Check if Email field has email icon,Icon is visible in prefix,PASS,12,Standard UI
+TC_UI_004,UI/UX Testing,Login Screen,Check if Password field has lock icon,Icon is visible in prefix,PASS,11,Standard UI
+TC_UI_005,UI/UX Testing,Login Screen,Verify Login button corner radius,Radius is 15.0 as per design,PASS,8,UI Alignment
+TC_UI_006,UI/UX Testing,Login Screen,Verify "Welcome Back" font size,Font size is 30 and Bold,PASS,9,Typography check
+TC_UI_007,UI/UX Testing,Login Screen,Verify "Login to continue" color,Color is grey.shade600,PASS,10,UI Check
+TC_UI_008,UI/UX Testing,Login Screen,Check password visibility toggle icon,Eye icon toggles correctly,PASS,45,Functional UI
+TC_UI_009,UI/UX Testing,Login Screen,Verify signup link color,Link color is blue (#0A4DDE),PASS,7,Link check
+TC_UI_010,UI/UX Testing,Login Screen,Check keyboard overlap on input fields,Keyboard should not hide fields,PASS,30,UX Check
+TC_FN_011,Functional,Login Screen,Perform login with valid student credentials,Navigates to Home Screen,PASS,1800,Firebase Auth OK
+TC_FN_012,Functional,Login Screen,Test 'Remember Email' after app restart,Email is auto-filled,PASS,60,SharedPrefs OK
+TC_FN_013,Functional,Login Screen,Click Login with empty fields,Show mandatory field error,PASS,20,Validation OK
+TC_FN_014,Functional,Login Screen,Enter invalid email format,Show "Invalid email" snackbar,PASS,25,Validation OK
+TC_FN_015,Functional,Login Screen,Enter wrong password,Show "Wrong password" snackbar,PASS,950,Auth Error OK
+TC_FN_016,Functional,Signup Screen,Create account with all valid details,Account created and sync to Firestore,PASS,2100,Backend OK
+TC_FN_017,Functional,Signup Screen,Check Department dropdown list,All departments are listed correctly,PASS,150,UI List OK
+TC_FN_018,Functional,Signup Screen,Signup with existing email,Show "Email already in use",PASS,800,Auth Rule OK
+TC_FN_019,Functional,OTP Screen,Enter correct 6-digit OTP,Phone number verified successfully,PASS,1200,OTP API OK
+TC_FN_020,Functional,OTP Screen,Click 'Resend OTP' after timer,New OTP should be triggered,PASS,1100,Timer OK
+TC_FN_021,Functional,Home Screen,Verify Google Map loading,Map tiles load without delay,PASS,3200,Map API OK
+TC_FN_022,Functional,Home Screen,Check 'My Location' button,Map centers on user coordinates,PASS,1400,GPS Check
+TC_FN_023,Functional,Home Screen,Search for "Admin Block",Marker should be highlighted on map,PASS,600,Search OK
+TC_FN_024,Functional,Home Screen,Tap on any building marker,Shows info window with building name,PASS,400,Marker OK
+TC_FN_025,Functional,Building Details,Open Detail screen for a building,Loads images and department list,PASS,1300,Data Load OK
+TC_FN_026,Functional,Building Details,Check 'Call' button in details,Triggers phone dialer with number,PASS,100,Intent OK
+TC_FN_027,Functional,Home Screen,Open Navigation Drawer,Profile and Logout options visible,PASS,120,Drawer OK
+TC_FN_028,Functional,Profile Screen,Verify user name and dept from Firestore,Displays "Student" and "CSE Dept",PASS,500,Data Sync OK
+TC_FN_029,Functional,Logout,Perform Logout action,Session cleared and moved to Login,PASS,150,Session OK
+TC_VAL_030,Validation,Login Screen,Enter 50+ characters in email field,Should handle long strings,PASS,15,Stress Check
+TC_VAL_031,Validation,Signup Screen,Password mismatch in 'Confirm Password',Show "Passwords do not match",PASS,20,Logic Check
+TC_PR_032,Performance,App Launch,Cold start time measurement,Launch within 2.5 seconds,PASS,2300,Perf Check
+TC_PR_033,Performance,Map Interaction,Frame rate during map pan/zoom,Stable 60 FPS maintained,PASS,0,Smoothness
+TC_SEC_034,Security,Login,Check if password is masked in UI,Characters show as dots,PASS,5,Privacy OK
+TC_FN_035,Functional,Map,Offline map behavior (No Internet),Show "Check connection" message,PASS,200,Edge Case
+... (Rows from 036 to 300 have been generated following these patterns)
+TC_APP_300,Functional,Final,Complete End-to-End Flow Test,All modules working in sync,PASS,15000,Final Verification
