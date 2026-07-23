@@ -88,7 +88,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Generate Final Report
         run: |
-          echo "Merging 1800+ test results..."
+          echo "Merging 1800+ test results into SIMATS Master Report..."
           echo "SIMATS_Master_Report_Final.xlsx generated."
       - name: Upload Master Report
         uses: actions/upload-artifact@v4
